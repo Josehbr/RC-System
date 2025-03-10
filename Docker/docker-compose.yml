@@ -1,101 +1,56 @@
 version: '3.8'
 
 services:
-  db:
-<<<<<<< HEAD
+  mysql:
     image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password --innodb_buffer_pool_size=256M --innodb_log_file_size=64M
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: rc_system
+      MYSQL_DATABASE: mydatabase
       MYSQL_USER: user
-      MYSQL_PASSWORD: user
+      MYSQL_PASSWORD: password
     ports:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password --innodb_buffer_pool_size=256M --innodb_log_file_size=64M
     deploy:
       resources:
         limits:
           cpus: "1.0"
           memory: 1G
     networks:
-      - my_network
+      - app_network
 
   redis:
     image: redis:latest
+    command: redis-server --requirepass password --maxmemory 256mb --maxmemory-policy volatile-lru
     ports:
       - "6380:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
     networks:
-      - my_network
+      - app_network
 
-  redis-exporter:
-    image: oliver006/redis_exporter:latest
-    environment:
-      REDIS_ADDR: redis:6379
-    ports:
-      - "9121:9121"
-    restart: unless-stopped
-    networks:
-      - my_network
-
-  nosql:
+  mongodb:
     image: mongo:latest
+    command: --wiredTigerCacheSizeGB=1
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
     networks:
-      - my_network
-
-  mongodb-exporter:
-    image: percona/mongodb_exporter:0.40.0
-    command: --mongodb.uri=mongodb://nosql:27017
-    ports:
-      - "9216:9216"
-    restart: unless-stopped
-    networks:
-      - my_network
+      - app_network
 
   prometheus:
     image: prom/prometheus:v2.51.0
-=======
-    image: postgres:15
-    restart: always
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mydatabase
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:latest
-    restart: always
-    ports:
-      - "6380:6379"
-
-  nosql:
-    image: mongo:latest
-    restart: always
-    ports:
-      - "27017:27017"
-
-  prometheus:
-    image: prom/prometheus
->>>>>>> feature/docker
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
     ports:
       - "9090:9090"
-<<<<<<< HEAD
     restart: unless-stopped
     deploy:
       resources:
@@ -103,19 +58,7 @@ services:
           cpus: "0.5"
           memory: 512M
     networks:
-      - my_network
-
-  mysql-exporter:
-    image: prom/mysqld-exporter:latest
-    environment:
-      DATA_SOURCE_NAME: "user:password@(db:3306)/mydatabase"
-    ports:
-      - "9104:9104"
-    depends_on:
-      - db
-    restart: unless-stopped
-    networks:
-      - my_network
+      - app_network
 
   grafana:
     image: grafana/grafana:latest
@@ -126,16 +69,11 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
     restart: unless-stopped
+    environment:
+      - GF_SERVER_HTTP_PORT=3000
+      - GF_DATABASE_TYPE=sqlite3
     networks:
-      - my_network
-
-  node-exporter:
-    image: prom/node-exporter:v1.7.0
-    ports:
-      - "9100:9100"
-    restart: unless-stopped
-    networks:
-      - my_network
+      - app_network
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -149,37 +87,36 @@ services:
       - /dev/disk/:/dev/disk:ro
     restart: unless-stopped
     networks:
-      - my_network
+      - app_network
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - app_network
 
 volumes:
   mysql_data:
     driver: local
-    driver_opts:
-      type: none
-      device: /var/lib/docker/volumes/mysql_data
-      o: bind
   redis_data:
     driver: local
   mongo_data:
     driver: local
-    driver_opts:
-      type: none
-      device: /var/lib/docker/volumes/mongo_data
-      o: bind
+  prometheus_data:
+    driver: local
   grafana_data:
     driver: local
 
 networks:
-  my_network:
-=======
-
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-
-volumes:
-  postgres_data:
->>>>>>> feature/docker
+  app_network:
+    driver: bridge
