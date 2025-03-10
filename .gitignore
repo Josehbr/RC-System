@@ -1,0 +1,13 @@
+# Ignorar o ambiente virtual
+venv/
+
+# Dependências do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Arquivos do editor
+.vscode/
+.idea/
+*.swp
