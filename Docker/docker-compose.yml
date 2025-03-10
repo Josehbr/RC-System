@@ -14,6 +14,11 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uuser", "-ppassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -102,6 +107,30 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - app_network
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    environment:
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: password
+    ports:
+      - "9121:9121"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - app_network
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.40.0
+    command: --mongodb.uri=mongodb://mongodb:27017
+    ports:
+      - "9216:9216"
+    depends_on:
+      - mongodb
+    restart: unless-stopped
     networks:
       - app_network
 
